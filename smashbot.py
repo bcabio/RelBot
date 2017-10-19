@@ -129,7 +129,7 @@ model.compile(loss='mse', optimizer=rms)
 
 
 epsilon = 0.05
-
+gamma = 0.9 
 previous_gamestate = [0]*32
 #Main loop
 while True:
@@ -137,11 +137,12 @@ while True:
     # for x in gamestate:
     #     print(x)
     # print ('-----')
-    gs = gamestate.player[1].tolist() + gamestate.player[2].tolist()
-    print(gs)
+    previous_gamestate = gamestate.player[1].tolist() + gamestate.player[2].tolist()
+    # print(previous_gamestate)
 
-    gamestate.step()
-
+    if gamestate.menu_state != melee.enums.Menu.IN_GAME:
+        gamestate.step()
+    # print()
     #What menu are we in?
     if gamestate.menu_state == melee.enums.Menu.IN_GAME:
         #The strategy "step" will cascade all the way down the objective hierarchy
@@ -149,25 +150,44 @@ while True:
         ##### RL ARCHITECTURE HERE #####
 
 
-        qval = model.predict(np.asarray(gs).reshape(1, 32), batch_size=1)
-        print(qval)
-        print(type(qval))
-        print(make_inputs(qval))
-        #QVal mapping documentation
-        '''
-        [A, B, X, Y, Start, Z, L, R, D_up, D_down, D_left, D_right, 
-            Stick_X, Stick_Y, CStick_X, CStick_Y, LShoulder, RShoulder]
-        '''
+        qval = model.predict(np.asarray(previous_gamestate).reshape(1, 32), batch_size=1)
+     
+       
 
-        # if random.random() < epsilon:
-        #     action = np.random.rand(1, 18)
-        #     # print('random')
-        # else:
-            # for i,x in enumerate(np.nditer(qval, op_flags=["readwrite"])):
-                # print(i,x)
+        if random.random() < epsilon:
+            action = np.random.rand(1, 18)
+            # print('random')
+        else:
+            action = make_inputs(qval)
 
-        '''
+        print('here')
+        print("-----")
+        print(action)
+        print(action[0])
+        print("-----")
+        apply_inputs(controller, action[0])
+        gamestate.step()
+        reward = get_reward(gamestate.tolist(), previous_gamestate)
+
+        y = np.zeros((1, 18))
+        y[:] = qval[:]
+        if reward == -1:
+            update = []
+            for val in action[0]:
+                if val >= 0.5:
+                    update.append(reward + gamma * val)
+                else:
+                    update.append(reward)
+        else:
+            update = [reward]*18
+
+        y[0] = update
+
+        model.fit(np.asarray(gamestate.player[1].tolist() + gamestate.player[2].tolist()).reshape(1, 32), np.asarray(y), batch_size=1, nb_epoch=1, verbose=1)
+
         
+
+        '''
         RL Notes:
 
         Input: Game state of the players
@@ -177,18 +197,13 @@ while True:
         Reward: Taking a stock
 
         Penalty: Losing a stock
-
-        
-
-
-
         '''
-        melee.techskill.multishine(ai_state=globals.smashbot_state, controller=controller)
+        # melee.techskill.multishine(ai_state=globals.smashbot_state, controller=controller)
 
     #If we're at the character select screen, choose our character
     elif gamestate.menu_state == melee.enums.Menu.CHARACTER_SELECT:
-        melee.menuhelper.choosecharacter(character=melee.enums.Character.CPTFALCON,
-            gamestate=gamestate, controller=controller, swag=True, start=False)
+        melee.menuhelper.choosecharacter(character=melee.enums.Character.FOX,
+            gamestate=gamestate, controller=controller, swag=False, start=False)
     #If we're at the postgame scores screen, spam START
     elif gamestate.menu_state == melee.enums.Menu.POSTGAME_SCORES:
         melee.menuhelper.skippostgame(controller=controller)
