@@ -11,6 +11,7 @@ from keras.optimizers import RMSprop
 import numpy as np
 
 from util import *
+from reward import *
 
 import globals
 
@@ -121,7 +122,7 @@ model.add(Activation('tanh'))
 
 # Initialize output layer with linear activitation for real-valued outputs
 model.add(Dense(output_size, kernel_initializer='lecun_uniform'))
-model.add(Activation('linear'))
+model.add(Activation('sigmoid'))
 
 rms = RMSprop()
 model.compile(loss='mse', optimizer=rms)
@@ -131,6 +132,7 @@ model.compile(loss='mse', optimizer=rms)
 epsilon = 0.05
 gamma = 0.9 
 previous_gamestate = [0]*32
+frame_counter = 10
 #Main loop
 while True:
     #"step" to the next frame
@@ -151,39 +153,54 @@ while True:
 
 
         qval = model.predict(np.asarray(previous_gamestate).reshape(1, 32), batch_size=1)
-     
+        # print(qval)
        
 
         if random.random() < epsilon:
-            action = np.random.rand(1, 18)
-            # print('random')
-        else:
             action = make_inputs(qval)
+        #     # print('random')
+        else:
+            action = make_inputs(np.random.rand(1, 18))
 
-        print('here')
-        print("-----")
-        print(action)
-        print(action[0])
-        print("-----")
+        # print('here')
+        # print("-----")
+        # print(action)
+        # print(action[0])
+        # print("-----")
+
+        # if frame_counter <= 0:
+        #     controller.press_button(melee.enums.Button.BUTTON_B)
+        #     frame_counter = 10
+        # else:
+        #     # print("hi")
+        #     controller.release_button(melee.enums.Button.BUTTON_B)
+
+        # frame_counter -= 1
+
         apply_inputs(controller, action[0])
         gamestate.step()
-        reward = get_reward(gamestate.tolist(), previous_gamestate)
+        if(is_dying(previous_gamestate, 2)):
+            print("kek")
+            break
+        # reward = get_reward(gamestate.player[1].tolist() + gamestate.player[2].tolist(), previous_gamestate)
+        # print(reward)
+        # y = np.zeros((1, 18))
+        # y[:] = qval[:]
+        # if reward == -1:
+        #     update = []
+        #     for val in action[0]:
+        #         if val >= 0.5:
+        #             update.append(reward + gamma * val)
+        #         else:
+        #             update.append(reward)
+        # else:
+        #     update = [reward]*18
 
-        y = np.zeros((1, 18))
-        y[:] = qval[:]
-        if reward == -1:
-            update = []
-            for val in action[0]:
-                if val >= 0.5:
-                    update.append(reward + gamma * val)
-                else:
-                    update.append(reward)
-        else:
-            update = [reward]*18
+        # print(update)
 
-        y[0] = update
+        # y[0] = update
 
-        model.fit(np.asarray(gamestate.player[1].tolist() + gamestate.player[2].tolist()).reshape(1, 32), np.asarray(y), batch_size=1, nb_epoch=1, verbose=1)
+        # model.fit(np.asarray(gamestate.player[1].tolist() + gamestate.player[2].tolist()).reshape(1, 32), np.asarray(y), batch_size=1, nb_epoch=1, verbose=1)
 
         
 
@@ -202,7 +219,7 @@ while True:
 
     #If we're at the character select screen, choose our character
     elif gamestate.menu_state == melee.enums.Menu.CHARACTER_SELECT:
-        melee.menuhelper.choosecharacter(character=melee.enums.Character.FOX,
+        melee.menuhelper.choosecharacter(character=melee.enums.Character.CPTFALCON,
             gamestate=gamestate, controller=controller, swag=False, start=False)
     #If we're at the postgame scores screen, spam START
     elif gamestate.menu_state == melee.enums.Menu.POSTGAME_SCORES:
@@ -215,6 +232,6 @@ while True:
     controller.flush()
 
     if log:
-        log.log("Notes", "Goals: " + str(strategy), concat=True)
+        log.log("Notes", "State: " + str(gamestate.menu_state), concat=True)
         log.logframe(gamestate)
         log.writeframe()
