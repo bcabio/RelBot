@@ -52,8 +52,8 @@ def get_reward(gamestate, prev_gamestate, player_port=1, ai_port=2, damage_ratio
 
     if stock_reward == 0:
         return damage_ratio * losses
-        
-    return stock_reward + damage_ratio * losses
+
+    return stock_reward
 
 
 

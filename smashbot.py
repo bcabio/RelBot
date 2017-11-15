@@ -155,7 +155,7 @@ while True:
 
 
             qval = model.predict(np.asarray(previous_gamestate).reshape(1, 32), batch_size=1)
-            # print(qval)
+            print(qval)
            
 
             if random.random() < epsilon:
@@ -163,7 +163,7 @@ while True:
             #     # print('random')
             else:
                 action = make_inputs(qval)
-
+                
             # print('here')
             # print("-----")
             # print(action)
