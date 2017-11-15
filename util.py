@@ -44,7 +44,7 @@ def make_inputs(q_values):
 # Access the controller to put in the inputs
 def apply_inputs(controller, input_values):
     # print("herea")
-    print(input_values)
+    # print(input_values)
     # print("end apply_inputs print")
     if input_values[0] == 1:
         controller.press_button(enums.Button.BUTTON_A)
@@ -94,9 +94,12 @@ def apply_inputs(controller, input_values):
 
     if input_values[12] or input_values[13] != 0:
         controller.tilt_analog(enums.Button.BUTTON_MAIN, input_values[12], input_values[13])
-        print(input_values[12], input_values[13]) 
+        # print(input_values[12], input_values[13]) 
     # controller.empty_input() 
-    
+
+# def clean_gamestate(gamestate):
+#     if is_dying(gamestate, 1) and not already_dead[1]:
+#         gamestate[]
     
 
 

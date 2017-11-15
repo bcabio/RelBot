@@ -5,7 +5,7 @@ import signal
 import sys
 import tensorflow as tf
 import random
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers.core import Dense, Dropout, Activation
 from keras.optimizers import RMSprop
 import numpy as np
@@ -127,111 +127,114 @@ model.add(Activation('sigmoid'))
 rms = RMSprop()
 model.compile(loss='mse', optimizer=rms)
 
+# model = load_model('melee_model.h5')
 
 
 epsilon = 0.05
 gamma = 0.9 
 previous_gamestate = [0]*32
-frame_counter = 10
+frame_counter = 5
 #Main loop
 while True:
+    try:
     #"step" to the next frame
     # for x in gamestate:
     #     print(x)
     # print ('-----')
-    previous_gamestate = gamestate.player[1].tolist() + gamestate.player[2].tolist()
-    # print(previous_gamestate)
+        previous_gamestate = gamestate.player[1].tolist() + gamestate.player[2].tolist()
+        # print(previous_gamestate)
 
-    if gamestate.menu_state != melee.enums.Menu.IN_GAME:
-        gamestate.step()
-    # print()
-    #What menu are we in?
-    if gamestate.menu_state == melee.enums.Menu.IN_GAME:
-        #The strategy "step" will cascade all the way down the objective hierarchy
+        if gamestate.menu_state != melee.enums.Menu.IN_GAME:
+            gamestate.step()
+        # print()
+        #What menu are we in?
+        if gamestate.menu_state == melee.enums.Menu.IN_GAME:
+            #The strategy "step" will cascade all the way down the objective hierarchy
 
-        ##### RL ARCHITECTURE HERE #####
+            ##### RL ARCHITECTURE HERE #####
 
 
-        qval = model.predict(np.asarray(previous_gamestate).reshape(1, 32), batch_size=1)
-        # print(qval)
-       
+            qval = model.predict(np.asarray(previous_gamestate).reshape(1, 32), batch_size=1)
+            # print(qval)
+           
 
-        if random.random() < epsilon:
-            action = make_inputs(qval)
-        #     # print('random')
-        else:
-            action = make_inputs(np.random.rand(1, 18))
+            if random.random() < epsilon:
+                action = make_inputs(np.random.rand(1, 18))
+            #     # print('random')
+            else:
+                action = make_inputs(qval)
 
-        # print('here')
-        # print("-----")
-        # print(action)
-        # print(action[0])
-        # print("-----")
+            # print('here')
+            # print("-----")
+            # print(action)
+            # print(action[0])
+            # print("-----")
 
-        # if frame_counter <= 0:
-        #     controller.press_button(melee.enums.Button.BUTTON_B)
-        #     frame_counter = 10
-        # else:
-        #     # print("hi")
-        #     controller.release_button(melee.enums.Button.BUTTON_B)
+            # if frame_counter <= 0:
+            #     controller.press_button(melee.enums.Button.BUTTON_B)
+            #     frame_counter = 10
+            # else:
+            #     # print("hi")
+            #     controller.release_button(melee.enums.Button.BUTTON_B)
 
-        # frame_counter -= 1
+            # frame_counter -= 1
 
-        apply_inputs(controller, action[0])
-        gamestate.step()
-        if(is_dying(previous_gamestate, 2)):
-            print("kek")
-            break
-        # reward = get_reward(gamestate.player[1].tolist() + gamestate.player[2].tolist(), previous_gamestate)
-        # print(reward)
-        # y = np.zeros((1, 18))
-        # y[:] = qval[:]
-        # if reward == -1:
-        #     update = []
-        #     for val in action[0]:
-        #         if val >= 0.5:
-        #             update.append(reward + gamma * val)
-        #         else:
-        #             update.append(reward)
-        # else:
-        #     update = [reward]*18
-
-        # print(update)
-
-        # y[0] = update
-
-        # model.fit(np.asarray(gamestate.player[1].tolist() + gamestate.player[2].tolist()).reshape(1, 32), np.asarray(y), batch_size=1, nb_epoch=1, verbose=1)
-
+            apply_inputs(controller, action[0])
+            gamestate.step()
         
+            current_gamestate = gamestate.player[1].tolist() + gamestate.player[2].tolist()
+            reward = get_reward(current_gamestate, previous_gamestate, player_port=1, ai_port=2)
+            
+         
 
-        '''
-        RL Notes:
+            # print(reward)
+            y = np.zeros((1, 18))
+            y[:] = qval[:]
+            if reward != 0:
+                print("reward: " + str(reward))
+                update = [reward + gamma * val for val in y[0]]
+            else:
+                update = [reward]*18
 
-        Input: Game state of the players
+            # print(update)
 
-        Output: Controller input
+            y[0] = update
 
-        Reward: Taking a stock
+            model.fit(np.asarray(gamestate.player[1].tolist() + gamestate.player[2].tolist()).reshape(1, 32), np.asarray(y), batch_size=1, nb_epoch=1, verbose=0)
 
-        Penalty: Losing a stock
-        '''
-        # melee.techskill.multishine(ai_state=globals.smashbot_state, controller=controller)
+            
 
-    #If we're at the character select screen, choose our character
-    elif gamestate.menu_state == melee.enums.Menu.CHARACTER_SELECT:
-        melee.menuhelper.choosecharacter(character=melee.enums.Character.CPTFALCON,
-            gamestate=gamestate, controller=controller, swag=False, start=False)
-    #If we're at the postgame scores screen, spam START
-    elif gamestate.menu_state == melee.enums.Menu.POSTGAME_SCORES:
-        melee.menuhelper.skippostgame(controller=controller)
-    #If we're at the stage select screen, choose a stage
-    elif gamestate.menu_state == melee.enums.Menu.STAGE_SELECT:
-        melee.menuhelper.choosestage(stage=melee.enums.Stage.FINAL_DESTINATION,
-            gamestate=gamestate, controller=controller)
-    #Flush any button presses queued up
-    controller.flush()
+            '''
+            RL Notes:
 
-    if log:
-        log.log("Notes", "State: " + str(gamestate.menu_state), concat=True)
-        log.logframe(gamestate)
-        log.writeframe()
+            Input: Game state of the players
+
+            Output: Controller input
+
+            Reward: Taking a stock
+
+            Penalty: Losing a stock
+            '''
+            # melee.techskill.multishine(ai_state=globals.smashbot_state, controller=controller)
+
+        #If we're at the character select screen, choose our character
+        elif gamestate.menu_state == melee.enums.Menu.CHARACTER_SELECT:
+            melee.menuhelper.choosecharacter(character=melee.enums.Character.MARTH,
+                gamestate=gamestate, controller=controller, swag=False, start=False)
+        #If we're at the postgame scores screen, spam START
+        elif gamestate.menu_state == melee.enums.Menu.POSTGAME_SCORES:
+            melee.menuhelper.skippostgame(controller=controller)
+        #If we're at the stage select screen, choose a stage
+        elif gamestate.menu_state == melee.enums.Menu.STAGE_SELECT:
+            melee.menuhelper.choosestage(stage=melee.enums.Stage.FINAL_DESTINATION,
+                gamestate=gamestate, controller=controller)
+        #Flush any button presses queued up
+        controller.flush()
+
+        if log:
+            log.log("Notes", "State: " + str(gamestate.menu_state), concat=True)
+            log.logframe(gamestate)
+            log.writeframe()
+    except KeyboardInterrupt:
+        break
+model.save('melee_model.h5')
