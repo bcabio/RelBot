@@ -106,34 +106,36 @@ output_size = 18
 # hidden_weights = np.random.uniform(size=(input_size, hidden_size))
 # output_weights = np.random.uniform(size=(hidden_size, output_size))
 
+
 model = Sequential()
 
+try:
+    model = load_model('melee_model.h5')
+except:
+
 # Initialize input layer with tanh activation
-model.add(Dense(100, kernel_initializer='lecun_uniform', input_shape=(input_size,)))
-model.add(Activation('tanh'))
+    model.add(Dense(100, kernel_initializer='lecun_uniform', input_shape=(input_size,)))
+    model.add(Activation('tanh'))
 
-# Initialize first hidden layer with tanh activitation
-model.add(Dense(100, kernel_initializer='lecun_uniform'))
-model.add(Activation('tanh'))
+    # Initialize first hidden layer with tanh activitation
+    model.add(Dense(100, kernel_initializer='lecun_uniform'))
+    model.add(Activation('tanh'))
 
-# Initialize second hidden layer with tanh activitation
-model.add(Dense(100, kernel_initializer='lecun_uniform'))
-model.add(Activation('tanh'))
+    # Initialize second hidden layer with tanh activitation
+    model.add(Dense(100, kernel_initializer='lecun_uniform'))
+    model.add(Activation('tanh'))
 
-# Initialize output layer with linear activitation for real-valued outputs
-model.add(Dense(output_size, kernel_initializer='lecun_uniform'))
-model.add(Activation('sigmoid'))
+    # Initialize output layer with linear activitation for real-valued outputs
+    model.add(Dense(output_size, kernel_initializer='lecun_uniform'))
+    model.add(Activation('sigmoid'))
 
-rms = RMSprop()
-model.compile(loss='mse', optimizer=rms)
-
-# model = load_model('melee_model.h5')
-
+    rms = RMSprop()
+    model.compile(loss='mse', optimizer=rms)
 
 epsilon = 0.05
 gamma = 0.9 
 previous_gamestate = [0]*32
-frame_counter = 5
+frame_counter = 100000
 #Main loop
 while True:
     try:
@@ -155,7 +157,7 @@ while True:
 
 
             qval = model.predict(np.asarray(previous_gamestate).reshape(1, 32), batch_size=1)
-            print(qval)
+            # print(qval)
            
 
             if random.random() < epsilon:
@@ -163,7 +165,8 @@ while True:
             #     # print('random')
             else:
                 action = make_inputs(qval)
-                
+
+            # print(action)
             # print('here')
             # print("-----")
             # print(action)
@@ -202,7 +205,12 @@ while True:
 
             model.fit(np.asarray(gamestate.player[1].tolist() + gamestate.player[2].tolist()).reshape(1, 32), np.asarray(y), batch_size=1, nb_epoch=1, verbose=0)
 
-            
+            frame_counter -= 1            
+
+            if frame_counter == 0:
+                model.save('melee_model.h5')
+                print("====== Model saved ======")
+
 
             '''
             RL Notes:
@@ -237,4 +245,3 @@ while True:
             log.writeframe()
     except KeyboardInterrupt:
         break
-model.save('melee_model.h5')
